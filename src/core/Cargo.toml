@@ -1,0 +1,79 @@
+[package]
+name = "saai-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["SAAI Development Team"]
+description = "SAAI Core - Nano-Núcleos Cuánticos en Rust"
+license = "MIT"
+repository = "https://github.com/saai-team/saai-ecosystem"
+
+[dependencies]
+# Async runtime y concurrencia
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+rayon = "1.8"
+
+# Serialización y comunicación
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+prost = "0.12"
+tonic = "0.10"
+nats = "0.25"
+
+# Logging y observabilidad
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+metrics = "0.22"
+prometheus = "0.13"
+
+# Seguridad y criptografía
+ring = "0.17"
+rustls = "0.22"
+webpki-roots = "0.26"
+
+# Sistema operativo y hardware
+libc = "0.2"
+nix = "0.27"
+sysinfo = "0.30"
+
+# Bases de datos y almacenamiento
+rocksdb = "0.21"
+redis = { version = "0.24", features = ["tokio-comp"] }
+
+# Configuración
+config = "0.14"
+clap = { version = "4.4", features = ["derive"] }
+
+# Utilidades
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+thiserror = "1.0"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.4"
+mockall = "0.12"
+tempfile = "3.8"
+
+[build-dependencies]
+tonic-build = "0.10"
+
+[[bin]]
+name = "saai-core"
+path = "src/main.rs"
+
+[[bench]]
+name = "nano_core_benchmarks"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
