@@ -21,6 +21,7 @@ use crate::communication::CognitiveFabric;
 use crate::consensus::ConsensusManager;
 use crate::config::CoreConfig;
 use crate::metrics::MetricsCollector;
+use crate::security::SecurityManager;
 
 /// Tipos de nano-núcleos disponibles
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -102,8 +103,10 @@ pub struct NanoCoreManager {
     cognitive_fabric: Arc<CognitiveFabric>,
     consensus_manager: Arc<ConsensusManager>,
     metrics: Arc<MetricsCollector>,
+    security_manager: Arc<SecurityManager>,
     cores: Arc<RwLock<HashMap<NanoCoreType, Vec<Box<dyn NanoCore>>>>>,
     running: Arc<RwLock<bool>>,
+    health_monitor: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl NanoCoreManager {
@@ -113,17 +116,153 @@ impl NanoCoreManager {
         cognitive_fabric: Arc<CognitiveFabric>,
         consensus_manager: Arc<ConsensusManager>,
         metrics: Arc<MetricsCollector>,
+        security_manager: Arc<SecurityManager>,
     ) -> Result<Self> {
+        info!("🚀 Inicializando NanoCoreManager con configuración empresarial");
+        
         Ok(Self {
             config,
             cognitive_fabric,
             consensus_manager,
             metrics,
+            security_manager,
             cores: Arc::new(RwLock::new(HashMap::new())),
             running: Arc::new(RwLock::new(false)),
+            health_monitor: Arc::new(RwLock::new(None)),
         })
     }
 
+    /// Inicializar todos los nano-núcleos con redundancia
+    pub async fn initialize_all_cores(&self) -> Result<()> {
+        info!("⚡ Inicializando todos los nano-núcleos con redundancia empresarial");
+        
+        // Inicializar cada tipo de nano-núcleo
+        for core_type in [NanoCoreType::OS, NanoCoreType::Hardware, NanoCoreType::Network, NanoCoreType::Security] {
+            self.start_nano_core(core_type).await?;
+        }
+        
+        // Iniciar monitoreo de salud continuo
+        self.start_health_monitoring().await?;
+        
+        // Registrar nano-núcleos en el sistema de consenso
+        self.register_cores_in_consensus().await?;
+        
+        info!("✅ Todos los nano-núcleos inicializados y registrados");
+        Ok(())
+    }
+    
+    /// Registrar nano-núcleos en el sistema de consenso
+    async fn register_cores_in_consensus(&self) -> Result<()> {
+        let cores_guard = self.cores.read().await;
+        
+        for (core_type, instances) in cores_guard.iter() {
+            for (i, core) in instances.iter().enumerate() {
+                // Crear participante de consenso para cada instancia
+                let participant = NanoCoreConsensusParticipant::new(
+                    core.instance_id(),
+                    *core_type,
+                    i,
+                    self.cognitive_fabric.clone(),
+                );
+                
+                self.consensus_manager.register_participant(Box::new(participant)).await?;
+                
+                info!("🗳️  Nano-núcleo {:?} instancia {} registrado en consenso", core_type, i);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Iniciar monitoreo de salud continuo
+    async fn start_health_monitoring(&self) -> Result<()> {
+        let cores = self.cores.clone();
+        let metrics = self.metrics.clone();
+        let cognitive_fabric = self.cognitive_fabric.clone();
+        let running = self.running.clone();
+        
+        let health_task = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+            
+            while *running.read().await {
+                interval.tick().await;
+                
+                let cores_guard = cores.read().await;
+                let mut overall_health = SystemHealth {
+                    cores: HashMap::new(),
+                    overall_state: NanoCoreState::Running,
+                    consensus_health: 0.95,
+                    fabric_latency_ms: 2.5,
+                };
+                
+                let mut total_healthy = 0;
+                let mut total_cores = 0;
+                
+                for (core_type, instances) in cores_guard.iter() {
+                    let mut core_healths = Vec::new();
+                    
+                    for core in instances.iter() {
+                        match core.health_check().await {
+                            Ok(health) => {
+                                if matches!(health.state, NanoCoreState::Running) {
+                                    total_healthy += 1;
+                                }
+                                core_healths.push(health);
+                                total_cores += 1;
+                            }
+                            Err(e) => {
+                                error!("❌ Error obteniendo salud de {:?}: {}", core_type, e);
+                                total_cores += 1;
+                            }
+                        }
+                    }
+                    
+                    overall_health.cores.insert(*core_type, core_healths);
+                }
+                
+                // Calcular estado general
+                let health_percentage = if total_cores > 0 {
+                    (total_healthy as f64 / total_cores as f64) * 100.0
+                } else {
+                    0.0
+                };
+                
+                overall_health.overall_state = if health_percentage > 80.0 {
+                    NanoCoreState::Running
+                } else if health_percentage > 50.0 {
+                    NanoCoreState::Degraded
+                } else {
+                    NanoCoreState::Failed
+                };
+                
+                // Publicar métricas de salud
+                metrics.record_health_status(&overall_health).await;
+                
+                // Publicar evento de salud en Cognitive Fabric
+                if let Err(e) = cognitive_fabric.publish_event(crate::communication::CognitiveEvent {
+                    id: uuid::Uuid::new_v4(),
+                    event_type: crate::communication::EventType::HealthCheck,
+                    source: "nano-core-manager".to_string(),
+                    target: None,
+                    timestamp: chrono::Utc::now(),
+                    payload: serde_json::to_vec(&overall_health).unwrap_or_default(),
+                    priority: crate::communication::EventPriority::Normal,
+                    correlation_id: None,
+                }).await {
+                    warn!("⚠️  Error publicando métricas de salud: {}", e);
+                }
+                
+                // Log de estado crítico
+                if matches!(overall_health.overall_state, NanoCoreState::Failed) {
+                    error!("🚨 Estado crítico del sistema: {}% de nano-núcleos saludables", health_percentage);
+                }
+            }
+        });
+        
+        *self.health_monitor.write().await = Some(health_task);
+        info!("❤️  Monitoreo de salud continuo iniciado");
+        Ok(())
+    }
     /// Iniciar un tipo específico de nano-núcleo
     pub async fn start_nano_core(&self, core_type: NanoCoreType) -> Result<()> {
         let replica_count = self.config.consensus.replica_count;

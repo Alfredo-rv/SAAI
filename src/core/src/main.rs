@@ -22,6 +22,7 @@ use consensus::ConsensusManager;
 use communication::CognitiveFabric;
 use config::CoreConfig;
 use metrics::MetricsCollector;
+use security::SecurityManager;
 
 #[derive(Parser)]
 #[command(name = "saai-core")]
@@ -56,12 +57,21 @@ async fn main() -> Result<()> {
     info!("🚀 Iniciando SAAI Core - Nano-Núcleos Cuánticos");
 
     // Cargar configuración
-    let config = CoreConfig::load(&args.config)?;
+    let mut config = CoreConfig::load(&args.config).await?;
+    
+    // Optimizar configuración para el hardware actual
+    config.optimize_for_hardware()?;
     info!("📋 Configuración cargada desde: {}", args.config);
 
     // Inicializar colector de métricas
     let metrics = Arc::new(MetricsCollector::new(args.metrics_port).await?);
     info!("📊 Colector de métricas iniciado en puerto: {}", args.metrics_port);
+
+    // Inicializar gestor de seguridad
+    let security_manager = Arc::new(
+        SecurityManager::new(config.security.clone()).await?
+    );
+    info!("🔐 Gestor de seguridad inicializado");
 
     // Inicializar Cognitive Fabric (Bus de eventos)
     let cognitive_fabric = Arc::new(
@@ -86,23 +96,13 @@ async fn main() -> Result<()> {
             cognitive_fabric.clone(),
             consensus_manager.clone(),
             metrics.clone()
+            security_manager.clone(),
         ).await?
     );
 
-    // Iniciar nano-núcleos
+    // Inicializar todos los nano-núcleos con redundancia empresarial
     info!("⚡ Iniciando nano-núcleos...");
-    
-    nano_core_manager.start_nano_core(NanoCoreType::OS).await?;
-    info!("✅ Nano-Core.OS iniciado");
-    
-    nano_core_manager.start_nano_core(NanoCoreType::Hardware).await?;
-    info!("✅ Nano-Core.Hardware iniciado");
-    
-    nano_core_manager.start_nano_core(NanoCoreType::Network).await?;
-    info!("✅ Nano-Core.Network iniciado");
-    
-    nano_core_manager.start_nano_core(NanoCoreType::Security).await?;
-    info!("✅ Nano-Core.Security iniciado");
+    nano_core_manager.initialize_all_cores().await?;
 
     // Iniciar monitoreo de salud
     let health_monitor = tokio::spawn({
@@ -141,6 +141,7 @@ async fn main() -> Result<()> {
     health_monitor.abort();
     nano_core_manager.shutdown().await?;
     consensus_manager.shutdown().await?;
+    security_manager.shutdown().await?;
     cognitive_fabric.shutdown().await?;
     metrics.shutdown().await?;
 
