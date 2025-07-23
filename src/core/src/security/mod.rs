@@ -453,6 +453,17 @@ impl SecurityManager {
         Ok(())
     }
     
+    /// Shutdown del gestor de seguridad
+    pub async fn shutdown(&self) -> Result<()> {
+        info!("🛑 Cerrando SecurityManager");
+        
+        // Cerrar sesiones activas
+        self.active_sessions.write().await.clear();
+        
+        info!("✅ SecurityManager cerrado");
+        Ok(())
+    }
+    
     /// Obtener estadísticas de seguridad
     pub async fn get_security_stats(&self) -> HashMap<String, u64> {
         let events = self.security_events.read().await;

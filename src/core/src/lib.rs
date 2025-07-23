@@ -36,7 +36,7 @@ pub use config::{
 
 pub use security::{
     SecurityManager, SecurityConfig, SecurityContext, 
-    SecurityLevel, SecurityEvent
+    SecurityLevel, SecurityEvent, SecurityEventType, SecuritySeverity
 };
 
 /// Versión de SAAI Core
