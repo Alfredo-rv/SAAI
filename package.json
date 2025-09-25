@@ -54,9 +54,20 @@
     "vite": "^5.0.8"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.63.1",
+    "@types/papaparse": "^5.3.16",
+    "@types/uuid": "^10.0.0",
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.294.0",
+    "ml-regression": "^6.3.0",
+    "openai": "^5.23.0",
+    "papaparse": "^5.5.3",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "recharts": "^3.2.1",
+    "simple-statistics": "^7.8.8",
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=18.0.0",

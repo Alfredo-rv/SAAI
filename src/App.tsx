@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Monitor, Brain } from 'lucide-react';
+import { Monitor, Brain, Upload, FileText } from 'lucide-react';
 import { LocalDashboard } from './components/LocalDashboard';
 import { AdvancedDashboard } from './ui/components/AdvancedDashboard';
 import { CognitiveCopilot } from './ui/components/CognitiveCopilot';
+import { DataUploader } from './components/real/DataUploader';
+import { ModelTrainer } from './components/real/ModelTrainer';
 import { useSAAISystem } from './hooks/useSAAISystem';
 import { useMECA } from './hooks/useMECA';
 import { ProposalType } from './core/ConsensusManager';
@@ -10,6 +12,8 @@ import { ProposalType } from './core/ConsensusManager';
 function App() {
   const [viewMode, setViewMode] = useState<'local' | 'enterprise' | 'standard'>('local');
   const [copilotVisible, setCopilotVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState('upload');
+  const [processedData, setProcessedData] = useState<any>(null);
   
   const {
     isInitialized,
@@ -41,6 +45,11 @@ function App() {
     runChaosExperiment
   } = useMECA(fabric!, consensusManager!);
 
+  const tabs = [
+    { id: 'upload', label: 'Subir Datos', icon: Upload },
+    { id: 'train', label: 'Entrenar Modelo', icon: Brain },
+    { id: 'dashboard', label: 'Dashboard', icon: Monitor },
+  ];
 
   const handleSystemAction = async (action: string, params?: any) => {
     try {
@@ -75,7 +84,72 @@ function App() {
   if (viewMode === 'local') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <LocalDashboard />
+        {/* Navegación de pestañas */}
+        <nav className="bg-black/20 border-b border-purple-500/20">
+          <div className="container mx-auto px-6">
+            <div className="flex space-x-8">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center space-x-2 px-4 py-4 border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-purple-400 text-purple-400'
+                      : 'border-transparent text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <tab.icon className="w-5 h-5" />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </nav>
+
+        {/* Contenido Principal */}
+        <main className="flex-1 overflow-auto">
+          <div className="container mx-auto px-6 py-8">
+            {activeTab === 'upload' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6">📊 Subir y Procesar Datos</h2>
+                <DataUploader onDataProcessed={setProcessedData} />
+              </div>
+            )}
+            
+            {activeTab === 'train' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6">🤖 Entrenar Modelo de IA</h2>
+                {processedData ? (
+                  <ModelTrainer 
+                    data={processedData.validation.cleanedData || processedData.processing.data}
+                    columns={processedData.processing.columns}
+                    onModelTrained={(result) => {
+                      console.log('Modelo entrenado:', result);
+                    }}
+                  />
+                ) : (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6 text-center">
+                    <FileText className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-yellow-400 mb-2">
+                      Primero Sube un Dataset
+                    </h3>
+                    <p className="text-gray-300 mb-4">
+                      Para entrenar un modelo, necesitas subir y procesar un dataset primero.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('upload')}
+                      className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+                    >
+                      Ir a Subir Datos
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {activeTab === 'dashboard' && <LocalDashboard />}
+          </div>
+        </main>
         
         {/* Botón para cambiar vista */}
         <button
