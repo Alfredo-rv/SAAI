@@ -5,6 +5,7 @@ import { AdvancedDashboard } from './ui/components/AdvancedDashboard';
 import { CognitiveCopilot } from './ui/components/CognitiveCopilot';
 import { DataUploader } from './components/real/DataUploader';
 import { ModelTrainer } from './components/real/ModelTrainer';
+import { APIConfiguration } from './components/real/APIConfiguration';
 import { useSAAISystem } from './hooks/useSAAISystem';
 import { useMECA } from './hooks/useMECA';
 import { ProposalType } from './core/ConsensusManager';
@@ -49,6 +50,7 @@ function App() {
     { id: 'upload', label: 'Subir Datos', icon: Upload },
     { id: 'train', label: 'Entrenar Modelo', icon: Brain },
     { id: 'dashboard', label: 'Dashboard', icon: Monitor },
+    { id: 'apis', label: 'APIs', icon: Settings },
   ];
 
   const handleSystemAction = async (action: string, params?: any) => {
@@ -148,6 +150,13 @@ function App() {
             )}
             
             {activeTab === 'dashboard' && <LocalDashboard />}
+            
+            {activeTab === 'apis' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6">🔑 Configuración de APIs</h2>
+                <APIConfiguration />
+              </div>
+            )}
           </div>
         </main>
         
